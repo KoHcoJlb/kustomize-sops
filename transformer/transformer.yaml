@@ -1,0 +1,4 @@
+apiVersion: kohcojlb.github.com
+kind: sops-decrypt
+metadata:
+  name: sops
