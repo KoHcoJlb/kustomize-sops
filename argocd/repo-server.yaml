@@ -13,7 +13,7 @@ spec:
           subPath: sops-decrypt
       initContainers:
       - name: kustomize-sops
-        image: ghcr.io/kohcojlb/kustomize-sops:dev
+        image: ghcr.io/kohcojlb/kustomize-sops:v0.1.0
         command:
         - cp
         - /sops-decrypt
