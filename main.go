@@ -2,56 +2,50 @@ package main
 
 import (
 	"fmt"
+	"go.mozilla.org/sops/v3/aes"
+	"go.mozilla.org/sops/v3/cmd/sops/common"
 	"go.mozilla.org/sops/v3/cmd/sops/formats"
-	"go.mozilla.org/sops/v3/decrypt"
 	"os"
-	"sigs.k8s.io/kustomize/api/resource"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-var buildAnnotations = append(resource.BuildAnnotations, "kustomize.config.k8s.io/id")
+func decrypt(data []byte) (cleartext []byte, err error) {
+	store := common.StoreForFormat(formats.Yaml)
 
-func removeBuildAnnotations(node *yaml.RNode) {
-	annotations := node.GetAnnotations()
-	for _, name := range buildAnnotations {
-		delete(annotations, name)
+	// Load SOPS file and access the data key
+	tree, err := store.LoadEncryptedFile(data)
+	if err != nil {
+		return nil, err
 	}
-	if err := node.SetAnnotations(annotations); err != nil {
-		panic(err)
+	key, err := tree.Metadata.GetDataKey()
+	if err != nil {
+		return nil, err
 	}
-}
 
-func mergeBuildAnnotations(src, dst *yaml.RNode) {
-	srcAnnotations := src.GetAnnotations()
-	dstAnnotations := dst.GetAnnotations()
-	for _, name := range buildAnnotations {
-		dstAnnotations[name] = srcAnnotations[name]
+	// Decrypt the tree
+	cipher := aes.NewCipher()
+	_, err = tree.Decrypt(key, cipher)
+	if err != nil {
+		return nil, err
 	}
-	if err := dst.SetAnnotations(dstAnnotations); err != nil {
-		panic(err)
-	}
+
+	return store.EmitPlainFile(tree.Branches)
 }
 
 func filter(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
 	for idx, node := range nodes {
 		value := node.Field("sops")
 		if value != nil {
-			newNode := node.Copy()
-			removeBuildAnnotations(newNode)
-
-			cleartext, err := decrypt.DataWithFormat([]byte(newNode.MustString()), formats.Yaml)
+			cleartext, err := decrypt([]byte(node.MustString()))
 			if err != nil {
 				return nil, err
 			}
 
-			newNode, err = yaml.Parse(string(cleartext))
+			nodes[idx], err = yaml.Parse(string(cleartext))
 			if err != nil {
 				return nil, fmt.Errorf("redecode resource: %w", err)
 			}
-
-			mergeBuildAnnotations(node, newNode)
-			nodes[idx] = newNode
 		}
 	}
 
