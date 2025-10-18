@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
 data:
-  kustomize.buildOptions: --enable-alpha-plugins
+  kustomize.buildOptions: "--enable-alpha-plugins"

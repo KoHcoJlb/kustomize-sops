@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
-	"go.mozilla.org/sops/v3/aes"
-	"go.mozilla.org/sops/v3/cmd/sops/common"
-	"go.mozilla.org/sops/v3/cmd/sops/formats"
 	"os"
+
+	"github.com/getsops/sops/v3/aes"
+	"github.com/getsops/sops/v3/cmd/sops/common"
+	"github.com/getsops/sops/v3/cmd/sops/formats"
+	"github.com/getsops/sops/v3/config"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func decrypt(data []byte) (cleartext []byte, err error) {
-	store := common.StoreForFormat(formats.Yaml)
+	store := common.StoreForFormat(formats.Yaml, config.NewStoresConfig())
 
 	// Load SOPS file and access the data key
 	tree, err := store.LoadEncryptedFile(data)
